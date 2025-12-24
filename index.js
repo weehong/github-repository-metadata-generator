@@ -75,44 +75,119 @@ async function main() {
   const maxNameLen = Math.min(30, Math.max(...allRepos.map(r => r.name.length)));
   const maxLangLen = Math.min(15, Math.max(...allRepos.map(r => (r.language || "--").length)));
 
+  // Format relative time for "Last Updated" column
+  const formatRelativeTime = (dateString) => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return "today";
+    if (diffDays === 1) return "yesterday";
+    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
+    return `${Math.floor(diffDays / 365)}y ago`;
+  };
+
   // Display repositories in table column format
   const displayRepositoriesTable = (repos) => {
-    const header =
-      chalk.bold.white("  ") +
-      chalk.bold.white("Name".padEnd(maxNameLen + 2)) +
-      chalk.bold.white("Language".padEnd(maxLangLen + 2)) +
-      chalk.bold.white("★".padEnd(6)) +
-      chalk.bold.white("⑂".padEnd(6)) +
-      chalk.bold.white("Visibility".padEnd(10)) +
-      chalk.bold.white("Description");
+    // Box drawing characters for better visual styling
+    const box = {
+      topLeft: "┌", topRight: "┐", bottomLeft: "└", bottomRight: "┘",
+      horizontal: "─", vertical: "│", teeDown: "┬", teeUp: "┴", teeRight: "├", teeLeft: "┤", cross: "┼"
+    };
 
-    const separator = chalk.dim("─".repeat(90));
+    // Column definitions with widths
+    const cols = {
+      name: maxNameLen + 2,
+      lang: maxLangLen + 2,
+      stars: 7,
+      forks: 7,
+      updated: 12,
+      visibility: 10,
+      desc: 30
+    };
 
-    console.log(separator);
-    console.log(header);
-    console.log(separator);
+    const totalWidth = Object.values(cols).reduce((a, b) => a + b, 0) + Object.keys(cols).length + 1;
+
+    // Build header row
+    const headerLabels = [
+      " Name".padEnd(cols.name),
+      "Language".padEnd(cols.lang),
+      "★ Stars".padEnd(cols.stars),
+      "⑂ Forks".padEnd(cols.forks),
+      "Updated".padEnd(cols.updated),
+      "Visibility".padEnd(cols.visibility),
+      "Description".padEnd(cols.desc)
+    ];
+
+    // Top border
+    const topBorder = chalk.dim(
+      box.topLeft +
+      [cols.name, cols.lang, cols.stars, cols.forks, cols.updated, cols.visibility, cols.desc]
+        .map(w => box.horizontal.repeat(w))
+        .join(box.teeDown) +
+      box.topRight
+    );
+
+    // Header separator
+    const headerSep = chalk.dim(
+      box.teeRight +
+      [cols.name, cols.lang, cols.stars, cols.forks, cols.updated, cols.visibility, cols.desc]
+        .map(w => box.horizontal.repeat(w))
+        .join(box.cross) +
+      box.teeLeft
+    );
+
+    // Bottom border
+    const bottomBorder = chalk.dim(
+      box.bottomLeft +
+      [cols.name, cols.lang, cols.stars, cols.forks, cols.updated, cols.visibility, cols.desc]
+        .map(w => box.horizontal.repeat(w))
+        .join(box.teeUp) +
+      box.bottomRight
+    );
+
+    console.log(topBorder);
+    console.log(
+      chalk.dim(box.vertical) +
+      headerLabels.map(h => chalk.bold.white(h)).join(chalk.dim(box.vertical)) +
+      chalk.dim(box.vertical)
+    );
+    console.log(headerSep);
 
     repos.slice(0, 15).forEach((repo, idx) => {
-      const name = chalk.bold.cyan(repo.name.substring(0, maxNameLen).padEnd(maxNameLen + 2));
+      const name = chalk.bold.cyan(repo.name.substring(0, cols.name - 1).padEnd(cols.name));
       const language = repo.language
-        ? chalk.blue(repo.language.padEnd(maxLangLen + 2))
-        : chalk.gray("--".padEnd(maxLangLen + 2));
-      const stars = chalk.yellow(String(repo.stargazers_count).padEnd(6));
-      const forks = chalk.cyan(String(repo.forks_count).padEnd(6));
+        ? chalk.blue(repo.language.padEnd(cols.lang))
+        : chalk.gray("--".padEnd(cols.lang));
+      const stars = chalk.yellow(String(repo.stargazers_count).padEnd(cols.stars));
+      const forks = chalk.magenta(String(repo.forks_count).padEnd(cols.forks));
+      const updated = chalk.green(formatRelativeTime(repo.pushed_at).padEnd(cols.updated));
       const visibility = repo.private
-        ? chalk.yellow("private".padEnd(10))
-        : chalk.green("public".padEnd(10));
+        ? chalk.yellow("private".padEnd(cols.visibility))
+        : chalk.green("public".padEnd(cols.visibility));
+      const descText = repo.description
+        ? repo.description.substring(0, cols.desc - 3) + (repo.description.length > cols.desc - 3 ? "..." : "")
+        : "No description";
       const desc = repo.description
-        ? chalk.gray(repo.description.substring(0, 35) + (repo.description.length > 35 ? "..." : ""))
-        : chalk.dim.gray("No description");
+        ? chalk.gray(descText.padEnd(cols.desc))
+        : chalk.dim.gray(descText.padEnd(cols.desc));
 
-      console.log(`  ${name}${language}${stars}${forks}${visibility}${desc}`);
+      console.log(
+        chalk.dim(box.vertical) +
+        `${name}${chalk.dim(box.vertical)}${language}${chalk.dim(box.vertical)}${stars}${chalk.dim(box.vertical)}${forks}${chalk.dim(box.vertical)}${updated}${chalk.dim(box.vertical)}${visibility}${chalk.dim(box.vertical)}${desc}` +
+        chalk.dim(box.vertical)
+      );
     });
 
     if (repos.length > 15) {
-      console.log(chalk.dim(`  ... and ${repos.length - 15} more repositories`));
+      console.log(headerSep);
+      const moreMsg = `  ... and ${repos.length - 15} more repositories`;
+      console.log(chalk.dim(box.vertical) + chalk.dim.italic(moreMsg.padEnd(totalWidth - 2)) + chalk.dim(box.vertical));
     }
-    console.log(separator);
+    console.log(bottomBorder);
   };
 
   // Display table of repositories
@@ -121,27 +196,48 @@ async function main() {
 
   // Helper function to format repository for search results
   const formatRepoChoice = (repo) => {
-    const visibility = repo.private
-      ? chalk.yellow("◉ private")
-      : chalk.green("◎ public ");
-    const language = repo.language
-      ? chalk.blue(`[${repo.language}]`)
-      : chalk.gray("[--]");
-    const stars = repo.stargazers_count > 0
-      ? chalk.yellow(` ★ ${repo.stargazers_count}`)
-      : "";
-    const forks = repo.forks_count > 0
-      ? chalk.cyan(` ⑂ ${repo.forks_count}`)
-      : "";
-    const description = repo.description
-      ? chalk.gray(` │ ${repo.description.substring(0, 50)}${repo.description.length > 50 ? "..." : ""}`)
-      : chalk.dim.gray(" │ No description");
+    // Fixed column widths for alignment
+    const nameWidth = 28;
+    const langWidth = 12;
+    const statsWidth = 14;
 
-    return `${visibility} ${language} ${chalk.bold.white(repo.name)}${stars}${forks}${description}`;
+    // Repository name (padded for alignment)
+    const name = repo.name.length > nameWidth - 1
+      ? repo.name.substring(0, nameWidth - 2) + "…"
+      : repo.name;
+    const namePadded = chalk.bold.cyan(name.padEnd(nameWidth));
+
+    // Language tag
+    const langText = repo.language || "—";
+    const language = repo.language
+      ? chalk.blue(langText.padEnd(langWidth))
+      : chalk.dim.gray(langText.padEnd(langWidth));
+
+    // Stats (stars and forks)
+    const starsText = `★${String(repo.stargazers_count).padStart(4)}`;
+    const forksText = `⑂${String(repo.forks_count).padStart(4)}`;
+    const stats = chalk.yellow(starsText) + " " + chalk.magenta(forksText);
+
+    // Visibility indicator
+    const visibility = repo.private
+      ? chalk.yellow("●")
+      : chalk.green("○");
+
+    // Description (truncated)
+    const descText = repo.description
+      ? repo.description.substring(0, 40) + (repo.description.length > 40 ? "…" : "")
+      : "No description";
+    const description = repo.description
+      ? chalk.gray(descText)
+      : chalk.dim.gray(descText);
+
+    return `${visibility} ${namePadded} ${language} ${stats}  ${chalk.dim("│")} ${description}`;
   };
 
   // Let user search and select a repository
-  console.log(chalk.dim("\nType to search repositories by name, language, or description:\n"));
+  console.log(chalk.dim("\nType to search repositories by name, language, or description:"));
+  console.log(chalk.dim("  ○/● Name                         Language     Stars Forks │ Description"));
+  console.log(chalk.dim("  ─────────────────────────────────────────────────────────────────────────────\n"));
 
   const selectedRepo = await search({
     message: chalk.cyan("Search and select a repository:"),
