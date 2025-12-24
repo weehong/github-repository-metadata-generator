@@ -1,0 +1,25 @@
+{
+  "name": "github-repository-metadata-generator",
+  "version": "1.0.0",
+  "description": "Generate GitHub repository metadata (description, website, topics, README) using OpenAI",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "github",
+    "openai",
+    "metadata",
+    "generator"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@inquirer/prompts": "^7.0.0",
+    "@octokit/rest": "^21.0.0",
+    "chalk": "^5.6.2",
+    "dotenv": "^17.2.3",
+    "openai": "^4.0.0"
+  }
+}
